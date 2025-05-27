@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import { Group, Expense, User, ExpenseSplit, Settlement, SplitMethod } from '@/types';
@@ -240,19 +240,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return newExpense;
   };
 
-  const getGroupExpenses = useCallback((groupId: string) => {
+  const getGroupExpenses = (groupId: string) => {
     return expenses.filter(expense => expense.groupId === groupId);
-  }, [expenses]);
+  };
 
-  const getExpense = useCallback((expenseId: string) => {
+  const getExpense = (expenseId: string) => {
     return expenses.find(expense => expense.id === expenseId);
-  }, [expenses]);
+  };
 
-  const getGroup = useCallback((groupId: string) => {
+  const getGroup = (groupId: string) => {
     return groups.find(group => group.id === groupId);
-  }, [groups]);
+  };
 
-  const getGroupBalances = useCallback((groupId: string) => {
+  const getGroupBalances = (groupId: string) => {
     const balances: Record<string, number> = {};
     const groupExpenses = getGroupExpenses(groupId);
     const group = getGroup(groupId);
@@ -276,9 +276,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return balances;
-  }, [getGroupExpenses, getGroup]);
+  };
 
-  const getUserBalance = useCallback(() => {
+  const getUserBalance = () => {
     let totalOwed = 0;
     let totalOwedToUser = 0;
 
@@ -294,9 +294,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return { totalOwed, totalOwedToUser };
-  }, [groups, getGroupBalances]);
+  };
 
-  const getSettlements = useCallback((groupId: string) => {
+  const getSettlements = (groupId: string) => {
     const balances = getGroupBalances(groupId);
     const group = getGroup(groupId);
     const settlements: Settlement[] = [];
@@ -347,7 +347,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return settlements;
-  }, [getGroupBalances, getGroup]);
+  };
 
   const settleExpense = async (expenseId: string) => {
     const updatedExpenses = expenses.map(expense =>
@@ -357,7 +357,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await AsyncStorage.setItem('expenses', JSON.stringify(updatedExpenses));
   };
 
-  const getAllUsers = useCallback(() => MOCK_USERS, []);
+  const getAllUsers = () => MOCK_USERS;
 
   const getGroupInviteLink = (groupId: string) => {
     const token = btoa(`group-invite-${groupId}`);
