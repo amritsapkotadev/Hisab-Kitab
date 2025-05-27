@@ -9,9 +9,10 @@ import { ExpenseCard } from '@/components/ExpenseCard';
 import { BalanceCard } from '@/components/BalanceCard';
 import { SettlementCard } from '@/components/SettlementCard';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatCurrency } from '@/utils/formatters';
 
 export default function GroupDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams();
   const router = useRouter();
   const { getGroup, getGroupExpenses, getGroupBalances, getSettlements, settleExpense } = useData();
   const { user } = useAuth();
@@ -19,10 +20,10 @@ export default function GroupDetailScreen() {
   
   const [showSettlements, setShowSettlements] = React.useState(false);
   
-  const group = getGroup(id);
-  const expenses = getGroupExpenses(id);
-  const balances = getGroupBalances(id);
-  const settlements = getSettlements(id);
+  const group = getGroup(id as string);
+  const expenses = getGroupExpenses(id as string);
+  const balances = getGroupBalances(id as string);
+  const settlements = getSettlements(id as string);
   
   // User's balance in this group
   const userBalance = user ? balances[user.id] || 0 : 0;
@@ -51,8 +52,17 @@ export default function GroupDetailScreen() {
   
   if (!group) {
     return (
-      <View style={styles.container}>
-        <Text>Group not found</Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Appbar.Header style={{ backgroundColor: theme.colors.surface }}>
+          <Appbar.BackAction onPress={handleBack} />
+          <Appbar.Content title="Group Not Found" />
+        </Appbar.Header>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>This group doesn't exist or has been deleted.</Text>
+          <Button mode="contained" onPress={handleBack} style={styles.errorButton}>
+            Go Back
+          </Button>
+        </View>
       </View>
     );
   }
@@ -109,6 +119,13 @@ export default function GroupDetailScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>No expenses yet</Text>
+            <Button 
+              mode="contained" 
+              onPress={handleAddExpense}
+              style={styles.addFirstExpenseButton}
+            >
+              Add First Expense
+            </Button>
           </View>
         }
       />
@@ -160,6 +177,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: 'white',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   memberCount: {
     fontSize: 14,
@@ -167,20 +190,25 @@ const styles = StyleSheet.create({
   },
   balanceContainer: {
     paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingVertical: 24,
+    backgroundColor: 'white',
   },
   actionsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    marginBottom: 24,
+    paddingBottom: 24,
+    backgroundColor: 'white',
+    gap: 12,
   },
   actionButton: {
     flex: 1,
-    marginHorizontal: 8,
   },
   expensesHeader: {
     paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
   expensesTitle: {
     fontSize: 18,
@@ -193,21 +221,53 @@ const styles = StyleSheet.create({
   emptyContainer: {
     padding: 24,
     alignItems: 'center',
+    backgroundColor: 'white',
+    margin: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   emptyText: {
     fontSize: 16,
     opacity: 0.6,
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  addFirstExpenseButton: {
+    marginTop: 8,
   },
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   noSettlementsText: {
     textAlign: 'center',
     marginVertical: 16,
     opacity: 0.7,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 16,
+    opacity: 0.7,
+  },
+  errorButton: {
+    minWidth: 120,
   },
 });

@@ -89,8 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: 'google@example.com',
         avatar: 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg',
       };
-      setUser(mockGoogleUser);
-      AsyncStorage.setItem('user', JSON.stringify(mockGoogleUser));
+      handleAuthSuccess(mockGoogleUser);
     }
   }, [response]);
 
@@ -105,7 +104,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else if (user && inAuthGroup) {
       router.replace('/(tabs)/home');
     }
-  }, [user, segments, isLoading, router]);
+  }, [user, segments, isLoading]);
+
+  const handleAuthSuccess = async (userData: User) => {
+    try {
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      router.replace('/(tabs)/home');
+    } catch (error) {
+      console.error('Failed to save user data:', error);
+      throw error;
+    }
+  };
 
   const signInWithGoogle = async () => {
     try {
@@ -127,8 +137,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Invalid email or password');
       }
 
-      await AsyncStorage.setItem('user', JSON.stringify(foundUser));
-      setUser(foundUser);
+      await handleAuthSuccess(foundUser);
     } catch (error) {
       console.error('Sign in failed:', error);
       throw error;
@@ -153,8 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
       };
 
-      await AsyncStorage.setItem('user', JSON.stringify(newUser));
-      setUser(newUser);
+      await handleAuthSuccess(newUser);
     } catch (error) {
       console.error('Sign up failed:', error);
       throw error;
@@ -167,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await AsyncStorage.removeItem('user');
       setUser(null);
+      router.replace('/(auth)/login');
     } catch (error) {
       console.error('Sign out failed:', error);
       throw error;
