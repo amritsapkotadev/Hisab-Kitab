@@ -30,7 +30,7 @@ const MOCK_GROUPS: Group[] = [
   {
     id: '1',
     name: 'Weekend Trip',
-    members: MOCK_USERS.slice(0, 4),
+    members: MOCK_USERS.slice(0, 3),
     createdAt: new Date('2024-01-15'),
     description: 'Beach weekend getaway',
     category: 'Travel'
@@ -59,8 +59,7 @@ const MOCK_EXPENSES: Expense[] = [
     splitBetween: [
       { userId: '1', amount: 200 },
       { userId: '2', amount: 200 },
-      { userId: '3', amount: 200 },
-      { userId: '4', amount: 200 }
+      { userId: '3', amount: 200 }
     ],
     splitMethod: SplitMethod.EQUAL,
     date: new Date('2024-01-16'),
@@ -192,20 +191,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     members: User[],
     description?: string,
     category?: string
-  ) => {
-    const newGroup: Group = {
-      id: uuidv4(),
-      name,
-      members,
-      createdAt: new Date(),
-      description,
-      category
-    };
+  ): Promise<Group> => {
+    try {
+      const newGroup: Group = {
+        id: uuidv4(),
+        name,
+        members,
+        createdAt: new Date(),
+        description,
+        category
+      };
 
-    const updatedGroups = [...groups, newGroup];
-    setGroups(updatedGroups);
-    await AsyncStorage.setItem('groups', JSON.stringify(updatedGroups));
-    return newGroup;
+      const updatedGroups = [...groups, newGroup];
+      setGroups(updatedGroups);
+      await AsyncStorage.setItem('groups', JSON.stringify(updatedGroups));
+      return newGroup;
+    } catch (error) {
+      console.error('Error creating group:', error);
+      throw new Error('Failed to create group');
+    }
   };
 
   const addExpense = async (
@@ -218,56 +222,65 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     date: Date,
     category?: string,
     notes?: string
-  ) => {
-    const newExpense: Expense = {
-      id: uuidv4(),
-      groupId,
-      title,
-      amount,
-      paidBy,
-      splitBetween,
-      splitMethod,
-      date,
-      createdAt: new Date(),
-      category,
-      notes,
-      settled: false
-    };
+  ): Promise<Expense> => {
+    try {
+      const newExpense: Expense = {
+        id: uuidv4(),
+        groupId,
+        title,
+        amount,
+        paidBy,
+        splitBetween,
+        splitMethod,
+        date,
+        createdAt: new Date(),
+        category,
+        notes,
+        settled: false
+      };
 
-    const updatedExpenses = [...expenses, newExpense];
-    setExpenses(updatedExpenses);
-    await AsyncStorage.setItem('expenses', JSON.stringify(updatedExpenses));
-    return newExpense;
+      const updatedExpenses = [...expenses, newExpense];
+      setExpenses(updatedExpenses);
+      await AsyncStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+      return newExpense;
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      throw new Error('Failed to add expense');
+    }
   };
 
-  const getGroupExpenses = (groupId: string) => {
+  const getGroupExpenses = (groupId: string): Expense[] => {
     return expenses.filter(expense => expense.groupId === groupId);
   };
 
-  const getExpense = (expenseId: string) => {
+  const getExpense = (expenseId: string): Expense | undefined => {
     return expenses.find(expense => expense.id === expenseId);
   };
 
-  const getGroup = (groupId: string) => {
+  const getGroup = (groupId: string): Group | undefined => {
     return groups.find(group => group.id === groupId);
   };
 
-  const getGroupBalances = (groupId: string) => {
+  const getGroupBalances = (groupId: string): Record<string, number> => {
     const balances: Record<string, number> = {};
     const groupExpenses = getGroupExpenses(groupId);
     const group = getGroup(groupId);
 
     if (group) {
+      // Initialize balances for all members
       group.members.forEach(member => {
         balances[member.id] = 0;
       });
 
+      // Calculate balances from expenses
       groupExpenses.forEach(expense => {
         if (!expense.settled) {
+          // Add amounts paid
           expense.paidBy.forEach(payment => {
             balances[payment.userId] = (balances[payment.userId] || 0) + payment.amount;
           });
 
+          // Subtract amounts owed
           expense.splitBetween.forEach(split => {
             balances[split.userId] = (balances[split.userId] || 0) - split.amount;
           });
@@ -296,7 +309,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { totalOwed, totalOwedToUser };
   };
 
-  const getSettlements = (groupId: string) => {
+  const getSettlements = (groupId: string): Settlement[] => {
     const balances = getGroupBalances(groupId);
     const group = getGroup(groupId);
     const settlements: Settlement[] = [];
@@ -349,22 +362,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return settlements;
   };
 
-  const settleExpense = async (expenseId: string) => {
-    const updatedExpenses = expenses.map(expense =>
-      expense.id === expenseId ? { ...expense, settled: true } : expense
-    );
-    setExpenses(updatedExpenses);
-    await AsyncStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+  const settleExpense = async (expenseId: string): Promise<void> => {
+    try {
+      const updatedExpenses = expenses.map(expense =>
+        expense.id === expenseId ? { ...expense, settled: true } : expense
+      );
+      setExpenses(updatedExpenses);
+      await AsyncStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+    } catch (error) {
+      console.error('Error settling expense:', error);
+      throw new Error('Failed to settle expense');
+    }
   };
 
   const getAllUsers = () => MOCK_USERS;
 
-  const getGroupInviteLink = (groupId: string) => {
+  const getGroupInviteLink = (groupId: string): string => {
     const token = btoa(`group-invite-${groupId}`);
     return `${window.location.origin}/join-group/${token}`;
   };
 
-  const joinGroupByInviteLink = async (inviteLink: string, user: User) => {
+  const joinGroupByInviteLink = async (inviteLink: string, user: User): Promise<void> => {
     try {
       const token = inviteLink.split('/join-group/')[1];
       const decodedToken = atob(token);

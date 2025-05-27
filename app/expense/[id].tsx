@@ -1,20 +1,21 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, Appbar, Divider, List, Card, Button } from 'react-native-paper';
+import { Text, Appbar, Divider, List, Card, Button, useTheme as usePaperTheme } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useData } from '@/contexts/DataContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Avatar } from '@/components/Avatar';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/utils/formatters';
-import { Calendar, Receipt, Users } from 'lucide-react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { Calendar, Receipt, Users, ArrowRight } from 'lucide-react-native';
+import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
 
 export default function ExpenseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { getExpense, getGroup } = useData();
   const { theme } = useTheme();
+  const paperTheme = usePaperTheme();
   
   const expense = getExpense(id);
   const group = expense ? getGroup(expense.groupId) : null;
@@ -72,92 +73,102 @@ export default function ExpenseDetailScreen() {
       </Appbar.Header>
       
       <ScrollView style={styles.content}>
-        <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
-          <Text style={styles.title}>{expense.title}</Text>
-          <Text style={styles.groupName}>in {group.name}</Text>
-          <Text style={styles.amount}>{formatCurrency(expense.amount)}</Text>
+        <Animated.View entering={FadeIn.duration(300)} style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>{expense.title}</Text>
+          <Text style={[styles.groupName, { color: theme.colors.primary }]}>in {group.name}</Text>
+          <Text style={[styles.amount, { color: theme.colors.text }]}>{formatCurrency(expense.amount)}</Text>
           
           <View style={styles.metaInfo}>
             <View style={styles.metaItem}>
               <Calendar size={16} color={theme.colors.primary} />
-              <Text style={styles.metaText}>{formattedDate}</Text>
+              <Text style={[styles.metaText, { color: theme.colors.text }]}>{formattedDate}</Text>
             </View>
             {expense.category && (
               <View style={styles.metaItem}>
                 <Receipt size={16} color={theme.colors.primary} />
-                <Text style={styles.metaText}>{expense.category}</Text>
+                <Text style={[styles.metaText, { color: theme.colors.text }]}>{expense.category}</Text>
               </View>
             )}
             <View style={styles.metaItem}>
               <Users size={16} color={theme.colors.primary} />
-              <Text style={styles.metaText}>
+              <Text style={[styles.metaText, { color: theme.colors.text }]}>
                 {group.members.length} members
               </Text>
             </View>
           </View>
         </Animated.View>
         
-        <Animated.View entering={FadeIn.delay(100).duration(300)} style={styles.card}>
-          <Text style={styles.sectionTitle}>Paid by</Text>
+        <Animated.View 
+          entering={SlideInRight.delay(100).duration(300)} 
+          style={[styles.card, { backgroundColor: theme.colors.surface }]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Paid by</Text>
           {payers.map((payer, index) => (
-            <List.Item
-              key={index}
-              title={payer.user?.name || 'Unknown'}
-              description={formatCurrency(payer.amount)}
-              left={props => 
-                <Avatar 
-                  {...props} 
-                  user={payer.user} 
-                  size={40} 
-                  style={styles.avatar} 
-                />
-              }
-              titleStyle={styles.listItemTitle}
-              descriptionStyle={styles.listItemAmount}
-            />
+            <Card 
+              key={index} 
+              style={[styles.paymentCard, { backgroundColor: theme.colors.surface }]}
+            >
+              <Card.Content style={styles.paymentContent}>
+                <View style={styles.userInfo}>
+                  <Avatar user={payer.user} size={40} />
+                  <Text style={[styles.userName, { color: theme.colors.text }]}>
+                    {payer.user?.name || 'Unknown'}
+                  </Text>
+                </View>
+                <Text style={[styles.paymentAmount, { color: theme.colors.primary }]}>
+                  {formatCurrency(payer.amount)}
+                </Text>
+              </Card.Content>
+            </Card>
           ))}
         </Animated.View>
         
-        <Animated.View entering={FadeIn.delay(200).duration(300)} style={styles.card}>
-          <Text style={styles.sectionTitle}>Split between</Text>
+        <Animated.View 
+          entering={SlideInRight.delay(200).duration(300)} 
+          style={[styles.card, { backgroundColor: theme.colors.surface }]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Split between</Text>
           {debtors.map((debtor, index) => (
-            <List.Item
-              key={index}
-              title={debtor.user?.name || 'Unknown'}
-              description={
-                <>
-                  <Text style={styles.listItemAmount}>
+            <Card 
+              key={index} 
+              style={[styles.paymentCard, { backgroundColor: theme.colors.surface }]}
+            >
+              <Card.Content style={styles.paymentContent}>
+                <View style={styles.userInfo}>
+                  <Avatar user={debtor.user} size={40} />
+                  <View>
+                    <Text style={[styles.userName, { color: theme.colors.text }]}>
+                      {debtor.user?.name || 'Unknown'}
+                    </Text>
+                    {(debtor.shares || debtor.percentage) && (
+                      <Text style={[styles.splitDetail, { color: theme.colors.placeholder }]}>
+                        {debtor.shares ? `${debtor.shares} shares` : `${debtor.percentage}%`}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.amountContainer}>
+                  <ArrowRight size={16} color={theme.colors.primary} style={styles.arrow} />
+                  <Text style={[styles.paymentAmount, { color: theme.colors.secondary }]}>
                     {formatCurrency(debtor.amount)}
                   </Text>
-                  {debtor.shares && (
-                    <Text style={styles.splitDetail}>
-                      {' '}({debtor.shares} shares)
-                    </Text>
-                  )}
-                  {debtor.percentage && (
-                    <Text style={styles.splitDetail}>
-                      {' '}({debtor.percentage}%)
-                    </Text>
-                  )}
-                </>
-              }
-              left={props => 
-                <Avatar 
-                  {...props} 
-                  user={debtor.user} 
-                  size={40} 
-                  style={styles.avatar} 
-                />
-              }
-              titleStyle={styles.listItemTitle}
-            />
+                </View>
+              </Card.Content>
+            </Card>
           ))}
         </Animated.View>
         
         {expense.notes && (
-          <Animated.View entering={FadeIn.delay(300).duration(300)} style={styles.card}>
-            <Text style={styles.sectionTitle}>Notes</Text>
-            <Text style={styles.notes}>{expense.notes}</Text>
+          <Animated.View 
+            entering={SlideInRight.delay(300).duration(300)} 
+            style={[styles.card, { backgroundColor: theme.colors.surface }]}
+          >
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Notes</Text>
+            <Card style={[styles.notesCard, { backgroundColor: paperTheme.colors.surfaceVariant }]}>
+              <Card.Content>
+                <Text style={[styles.notes, { color: theme.colors.text }]}>{expense.notes}</Text>
+              </Card.Content>
+            </Card>
           </Animated.View>
         )}
       </ScrollView>
@@ -175,11 +186,16 @@ const styles = StyleSheet.create({
   header: {
     padding: 24,
     alignItems: 'center',
-    backgroundColor: 'white',
+    marginBottom: 16,
+    borderRadius: 0,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
     fontFamily: 'Inter-Bold',
     textAlign: 'center',
     marginBottom: 8,
@@ -192,7 +208,6 @@ const styles = StyleSheet.create({
   },
   amount: {
     fontSize: 32,
-    fontWeight: 'bold',
     fontFamily: 'Inter-Bold',
     marginBottom: 16,
   },
@@ -209,11 +224,9 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 14,
-    opacity: 0.7,
     fontFamily: 'Inter-Regular',
   },
   card: {
-    backgroundColor: 'white',
     padding: 16,
     marginHorizontal: 16,
     marginBottom: 16,
@@ -225,28 +238,48 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
     fontFamily: 'Inter-SemiBold',
     marginBottom: 12,
   },
-  avatar: {
-    marginRight: 16,
-    alignSelf: 'center',
+  paymentCard: {
+    marginBottom: 8,
+    borderRadius: 8,
+    elevation: 1,
   },
-  listItemTitle: {
+  paymentContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  userName: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-  },
-  listItemAmount: {
-    fontSize: 15,
-    fontFamily: 'Inter-Medium',
-    color: '#666',
   },
   splitDetail: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
+    marginTop: 2,
+  },
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  arrow: {
     opacity: 0.6,
+  },
+  paymentAmount: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  notesCard: {
+    borderRadius: 8,
   },
   notes: {
     fontSize: 16,
