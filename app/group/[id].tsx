@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet, FlatList, Share } from 'react-native';
 import { Text, FAB, Appbar, Portal, Dialog, Button } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useData } from '@/contexts/DataContext';
@@ -10,11 +10,12 @@ import { BalanceCard } from '@/components/BalanceCard';
 import { SettlementCard } from '@/components/SettlementCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/utils/formatters';
+import { Link } from 'lucide-react-native';
 
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
-  const { getGroup, getGroupExpenses, getGroupBalances, getSettlements, settleExpense } = useData();
+  const { getGroup, getGroupExpenses, getGroupBalances, getSettlements, settleExpense, getGroupInviteLink } = useData();
   const { user } = useAuth();
   const { theme } = useTheme();
   
@@ -39,6 +40,18 @@ export default function GroupDetailScreen() {
   
   const handleSettleUp = () => {
     setShowSettlements(true);
+  };
+
+  const handleShareGroup = async () => {
+    try {
+      const inviteLink = getGroupInviteLink(id as string);
+      await Share.share({
+        message: `Join my group "${group?.name}" on SplitWise!\n\n${inviteLink}`,
+        title: 'Join Group',
+      });
+    } catch (error) {
+      console.error('Error sharing group:', error);
+    }
   };
   
   const handleSettleExpense = async (settlementId: string) => {
@@ -72,6 +85,7 @@ export default function GroupDetailScreen() {
       <Appbar.Header style={{ backgroundColor: theme.colors.surface }}>
         <Appbar.BackAction onPress={handleBack} />
         <Appbar.Content title={group.name} />
+        <Appbar.Action icon={() => <Link size={24} />} onPress={handleShareGroup} />
         <Appbar.Action icon="account-group" />
       </Appbar.Header>
       
