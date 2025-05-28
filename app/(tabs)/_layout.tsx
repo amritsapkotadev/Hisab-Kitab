@@ -45,7 +45,8 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="groups"
-        options={{headerShown: false,
+        options={{
+          headerShown: false,
           tabBarActiveBackgroundColor: theme.colors.primary,
           tabBarActiveTintColor: theme.colors.onPrimary,
           tabBarInactiveBackgroundColor: theme.colors.surface,
@@ -62,7 +63,8 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="transactions"
-        options={{headerShown: false,
+        options={{
+          headerShown: false,
           tabBarActiveBackgroundColor: theme.colors.primary,
           tabBarActiveTintColor: theme.colors.onPrimary,
           tabBarInactiveBackgroundColor: theme.colors.surface,
@@ -79,7 +81,8 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="profile"
-        options={{headerShown: false,
+        options={{
+          headerShown: false,
           tabBarActiveBackgroundColor: theme.colors.primary,
           tabBarActiveTintColor: theme.colors.onPrimary,
           tabBarInactiveBackgroundColor: theme.colors.surface,
