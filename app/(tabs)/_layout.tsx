@@ -21,7 +21,6 @@ export default function TabLayout() {
         headerTintColor: theme.colors.text,
         headerTitleStyle: {
           fontFamily: 'Inter-SemiBold',
-          fontWeight: '600',
         },
       }}
     >
@@ -29,15 +28,7 @@ export default function TabLayout() {
         name="home"
         options={{
           headerShown: false,
-          tabBarActiveBackgroundColor: theme.colors.primary,
-          tabBarActiveTintColor: theme.colors.onPrimary,
-          tabBarInactiveBackgroundColor: theme.colors.surface,
-          tabBarInactiveTintColor: isDark ? '#999' : '#666',
-          tabBarLabelStyle: {
-            fontFamily: 'Inter-SemiBold',
-            fontWeight: '600',
-          },
-          title: 'Home',
+          tabBarLabel: 'Home',
           tabBarIcon: ({ color, size }) => (
             <Home size={size} color={color} />
           ),
@@ -47,15 +38,7 @@ export default function TabLayout() {
         name="groups"
         options={{
           headerShown: false,
-          tabBarActiveBackgroundColor: theme.colors.primary,
-          tabBarActiveTintColor: theme.colors.onPrimary,
-          tabBarInactiveBackgroundColor: theme.colors.surface,
-          tabBarInactiveTintColor: isDark ? '#999' : '#666',
-          tabBarLabelStyle: {
-            fontFamily: 'Inter-SemiBold',
-            fontWeight: '600',
-          },
-          title: 'Groups',
+          tabBarLabel: 'Groups',
           tabBarIcon: ({ color, size }) => (
             <UsersRound size={size} color={color} />
           ),
@@ -65,15 +48,7 @@ export default function TabLayout() {
         name="transactions"
         options={{
           headerShown: false,
-          tabBarActiveBackgroundColor: theme.colors.primary,
-          tabBarActiveTintColor: theme.colors.onPrimary,
-          tabBarInactiveBackgroundColor: theme.colors.surface,
-          tabBarInactiveTintColor: isDark ? '#999' : '#666',
-          tabBarLabelStyle: {
-            fontFamily: 'Inter-SemiBold',
-            fontWeight: '600',
-          },
-          title: 'Activity',
+          tabBarLabel: 'Activity',
           tabBarIcon: ({ color, size }) => (
             <Receipt size={size} color={color} />
           ),
@@ -83,15 +58,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           headerShown: false,
-          tabBarActiveBackgroundColor: theme.colors.primary,
-          tabBarActiveTintColor: theme.colors.onPrimary,
-          tabBarInactiveBackgroundColor: theme.colors.surface,
-          tabBarInactiveTintColor: isDark ? '#999' : '#666',
-          tabBarLabelStyle: {
-            fontFamily: 'Inter-SemiBold',
-            fontWeight: '600',
-          },
-          title: 'Profile',
+          tabBarLabel: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <User size={size} color={color} />
           ),
