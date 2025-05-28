@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Checkbox } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { Text, TextInput, Button } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Controller, useForm } from 'react-hook-form';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LogIn } from 'lucide-react-native';
 
 interface LoginForm {
   email: string;
   password: string;
-  rememberMe: boolean;
 }
 
 export default function LoginScreen() {
@@ -24,7 +23,6 @@ export default function LoginScreen() {
     defaultValues: {
       email: '',
       password: '',
-      rememberMe: false,
     },
   });
 
@@ -32,18 +30,9 @@ export default function LoginScreen() {
     try {
       setIsLoading(true);
       setError(null);
-      
-      if (data.rememberMe) {
-        await AsyncStorage.setItem('rememberMe', 'true');
-        await AsyncStorage.setItem('userEmail', data.email);
-      } else {
-        await AsyncStorage.removeItem('rememberMe');
-        await AsyncStorage.removeItem('userEmail');
-      }
-      
       await signIn(data.email, data.password);
     } catch (err) {
-      setError('Invalid email or password. Try using "john@example.com".');
+      setError('Invalid email or password. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -65,19 +54,6 @@ export default function LoginScreen() {
     router.push('/(auth)/signup');
   };
 
-  const applyDemoCredentials = () => {
-    control._formValues.email = 'john@example.com';
-    control._formValues.password = 'password';
-    control._updateFormState({
-      ...control._formState,
-      dirtyFields: {
-        ...control._formState.dirtyFields,
-        email: true,
-        password: true,
-      },
-    });
-  };
-
   return (
     <ScrollView 
       contentContainerStyle={[
@@ -86,11 +62,13 @@ export default function LoginScreen() {
       ]}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>Welcome Back</Text>
-        <Text style={[styles.subtitle, { color: theme.colors.placeholder }]}>
-          Sign in to continue
-        </Text>
+      <View style={styles.logoContainer}>
+        <Image 
+          source={{ uri: 'https://images.pexels.com/photos/6694543/pexels-photo-6694543.jpeg' }}
+          style={styles.logo}
+        />
+        <Text style={styles.appName}>HisabKitab</Text>
+        <Text style={styles.tagline}>Split expenses with friends & family</Text>
       </View>
       
       {error && (
@@ -159,23 +137,6 @@ export default function LoginScreen() {
           </Text>
         )}
         
-        <Controller
-          control={control}
-          render={({ field: { onChange, value } }) => (
-            <View style={styles.checkboxContainer}>
-              <Checkbox
-                status={value ? 'checked' : 'unchecked'}
-                onPress={() => onChange(!value)}
-                color={theme.colors.primary}
-              />
-              <Text style={[styles.checkboxLabel, { color: theme.colors.text }]}>
-                Remember me
-              </Text>
-            </View>
-          )}
-          name="rememberMe"
-        />
-        
         <Button
           mode="contained"
           onPress={handleSubmit(onSubmit)}
@@ -183,6 +144,7 @@ export default function LoginScreen() {
           disabled={isLoading}
           style={styles.button}
           contentStyle={styles.buttonContent}
+          icon={({ size, color }) => <LogIn size={size} color={color} />}
         >
           Sign In
         </Button>
@@ -204,12 +166,6 @@ export default function LoginScreen() {
         >
           Sign in with Google
         </Button>
-        
-        <TouchableOpacity onPress={applyDemoCredentials} style={styles.demoContainer}>
-          <Text style={[styles.demoText, { color: theme.colors.placeholder }]}>
-            Use demo credentials
-          </Text>
-        </TouchableOpacity>
       </View>
       
       <View style={styles.footer}>
@@ -232,16 +188,24 @@ const styles = StyleSheet.create({
     padding: 24,
     justifyContent: 'center',
   },
-  header: {
-    marginBottom: 40,
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 48,
   },
-  title: {
+  logo: {
+    width: 100,
+    height: 100,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  appName: {
     fontSize: 32,
     fontFamily: 'Inter-Bold',
     marginBottom: 8,
   },
-  subtitle: {
+  tagline: {
     fontSize: 16,
+    opacity: 0.7,
     fontFamily: 'Inter-Regular',
   },
   form: {
@@ -251,22 +215,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: 'transparent',
   },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  checkboxLabel: {
-    marginLeft: 8,
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-  },
   button: {
     borderRadius: 12,
     marginBottom: 16,
+    height: 48,
   },
   buttonContent: {
-    paddingVertical: 8,
+    height: 48,
+    flexDirection: 'row-reverse',
   },
   divider: {
     flexDirection: 'row',
@@ -286,16 +242,7 @@ const styles = StyleSheet.create({
   googleButton: {
     borderRadius: 12,
     marginBottom: 16,
-  },
-  demoContainer: {
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  demoText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    textDecorationLine: 'underline',
+    height: 48,
   },
   footer: {
     flexDirection: 'row',
