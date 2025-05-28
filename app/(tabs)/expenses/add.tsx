@@ -7,7 +7,6 @@ import { addDoc, collection, doc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 
 interface ExpenseForm {
@@ -15,7 +14,7 @@ interface ExpenseForm {
   amount: string;
   category: string;
   description?: string;
-  date: Date;
+  date: string;
 }
 
 const CATEGORIES = [
@@ -34,7 +33,6 @@ export default function AddExpenseScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
 
@@ -44,11 +42,10 @@ export default function AddExpenseScreen() {
       amount: '',
       category: '',
       description: '',
-      date: new Date()
+      date: format(new Date(), 'yyyy-MM-dd')
     }
   });
 
-  const selectedDate = watch('date');
   const selectedCategory = watch('category');
 
   const onSubmit = async (data: ExpenseForm) => {
@@ -64,7 +61,7 @@ export default function AddExpenseScreen() {
         amount: parseFloat(data.amount),
         category: data.category,
         description: data.description || '',
-        date: data.date.toISOString(),
+        date: new Date(data.date).toISOString(),
         createdAt: new Date().toISOString(),
       });
 
@@ -73,13 +70,6 @@ export default function AddExpenseScreen() {
       console.error('Error adding expense:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setValue('date', selectedDate);
     }
   };
 
@@ -195,30 +185,36 @@ export default function AddExpenseScreen() {
         rules={{
           required: 'Date is required'
         }}
-        render={({ field: { value } }) => (
+        render={({ field: { onChange, value } }) => (
           <TextInput
             label="Date"
-            value={format(value, 'MMMM d, yyyy')}
-            onPressIn={() => setShowDatePicker(true)}
+            value={value}
+            onChangeText={onChange}
             mode="outlined"
             style={styles.input}
             error={!!errors.date}
-            editable={false}
             right={<TextInput.Icon icon="calendar" />}
+            render={props => (
+              <input
+                type="date"
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  width: '100%',
+                  height: '100%',
+                  padding: '16px',
+                  fontSize: '16px',
+                  fontFamily: 'Inter-Regular',
+                  color: theme.colors.text
+                }}
+              />
+            )}
           />
         )}
         name="date"
       />
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display="default"
-          onChange={handleDateChange}
-          maximumDate={new Date()}
-        />
-      )}
 
       <Button
         mode="contained"
