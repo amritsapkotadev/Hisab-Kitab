@@ -20,23 +20,39 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '**/*'
   ],
   ios: {
-    supportsTablet: true
+    supportsTablet: true,
+    bundleIdentifier: 'com.hisabkitab.app'
   },
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/images/adaptive-icon.png',
       backgroundColor: '#FFFFFF'
-    }
+    },
+    package: 'com.hisabkitab.app'
   },
   web: {
     favicon: './assets/images/favicon.png'
   },
   extra: {
-    FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
-    FIREBASE_AUTH_DOMAIN: process.env.FIREBASE_AUTH_DOMAIN,
-    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
-    FIREBASE_STORAGE_BUCKET: process.env.FIREBASE_STORAGE_BUCKET,
-    FIREBASE_MESSAGING_SENDER_ID: process.env.FIREBASE_MESSAGING_SENDER_ID,
-    FIREBASE_APP_ID: process.env.FIREBASE_APP_ID,
+    FIREBASE_API_KEY: "AIzaSyAVYuEswLiTZD_tpV_7vQgED9RnK3Cy-QE",
+    FIREBASE_AUTH_DOMAIN: "hisab-kitab-ad197.firebaseapp.com",
+    FIREBASE_PROJECT_ID: "hisab-kitab-ad197",
+    FIREBASE_STORAGE_BUCKET: "hisab-kitab-ad197.firebasestorage.app",
+    FIREBASE_MESSAGING_SENDER_ID: "838491649019",
+    FIREBASE_APP_ID: "1:838491649019:web:16db04c04280fd5c2a915e",
+    FIREBASE_MEASUREMENT_ID: "G-PKPBDH24BR",
   },
+  plugins: [
+    'expo-router',
+    'expo-font',
+    'expo-web-browser',
+    [
+      'expo-build-properties',
+      {
+        ios: {
+          useFrameworks: 'static'
+        }
+      }
+    ]
+  ]
 });
