@@ -46,7 +46,6 @@ export default function GroupDetailScreen() {
   const handleSettleExpense = async (settlementId: string) => {
     try {
       await settleExpense(settlementId);
-      // In a real app, this would refresh the balances
     } catch (error) {
       console.error('Error settling expense:', error);
     }

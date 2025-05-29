@@ -4,8 +4,8 @@ import { useRouter, useSegments } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 
-import { User } from '@/types'; // Your app's User type
-import { auth } from '@/firebaseConfig';
+import { User } from '@/types'; 
+import { auth } from '../firebaseConfig';
 
 import { 
   signInWithEmailAndPassword, 

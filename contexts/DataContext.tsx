@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { collection, doc, setDoc, getDocs, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { auth, db } from '../firebaseConfig';
 import { useAuth } from './AuthContext';
 import { Group, Expense, User, ExpenseSplit, Settlement, SplitMethod } from '@/types';
 
@@ -38,15 +38,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const { user } = useAuth();
 
-  // Subscribe to user's groups
   useEffect(() => {
     if (!user) return;
-
-    const q = query(
-      collection(db, 'groups'),
-      where('memberIds', 'array-contains', user.id)
-    );
-
+    const q = query(collection(db, 'groups'), where('memberIds', 'array-contains', user.id));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const groupsData: Group[] = [];
       snapshot.forEach((doc) => {
@@ -62,19 +56,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setGroups(groupsData);
     });
-
     return () => unsubscribe();
   }, [user]);
 
-  // Subscribe to expenses
   useEffect(() => {
     if (!user) return;
-
-    const q = query(
-      collection(db, 'expenses'),
-      where('participantIds', 'array-contains', user.id)
-    );
-
+    const q = query(collection(db, 'expenses'), where('participantIds', 'array-contains', user.id));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const expensesData: Expense[] = [];
       snapshot.forEach((doc) => {
@@ -96,18 +83,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setExpenses(expensesData);
     });
-
     return () => unsubscribe();
   }, [user]);
 
-  const createGroup = async (
-    name: string,
-    members: User[],
-    description?: string,
-    category?: string
-  ): Promise<Group> => {
+  const createGroup = async (name: string, members: User[], description?: string, category?: string): Promise<Group> => {
     if (!user) throw new Error('User not authenticated');
-
     const groupRef = doc(collection(db, 'groups'));
     const newGroup: Group = {
       id: groupRef.id,
@@ -117,13 +97,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       description,
       category,
     };
-
     await setDoc(groupRef, {
       ...newGroup,
       memberIds: newGroup.members.map(m => m.id),
       createdAt: new Date(),
     });
-
     return newGroup;
   };
 
@@ -139,7 +117,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     notes?: string
   ): Promise<Expense> => {
     if (!user) throw new Error('User not authenticated');
-
     const expenseRef = doc(collection(db, 'expenses'));
     const newExpense: Expense = {
       id: expenseRef.id,
@@ -155,16 +132,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       notes,
       settled: false,
     };
-
     await setDoc(expenseRef, {
       ...newExpense,
-      participantIds: [...new Set([
-        ...paidBy.map(p => p.userId),
-        ...splitBetween.map(s => s.userId),
-      ])],
+      participantIds: [...new Set([...paidBy.map(p => p.userId), ...splitBetween.map(s => s.userId)])],
       createdAt: new Date(),
     });
-
     return newExpense;
   };
 
@@ -172,43 +144,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const balances: Record<string, number> = {};
     const groupExpenses = expenses.filter(expense => expense.groupId === groupId);
     const group = groups.find(group => group.id === groupId);
-
     if (group) {
       group.members.forEach(member => {
         balances[member.id] = 0;
       });
-
       groupExpenses.forEach(expense => {
         if (!expense.settled) {
           expense.paidBy.forEach(payment => {
             balances[payment.userId] = (balances[payment.userId] || 0) + payment.amount;
           });
-
           expense.splitBetween.forEach(split => {
             balances[split.userId] = (balances[split.userId] || 0) - split.amount;
           });
         }
       });
     }
-
     return balances;
   };
 
   const getUserBalance = () => {
     let totalOwed = 0;
     let totalOwedToUser = 0;
-
     groups.forEach(group => {
       const balances = getGroupBalances(group.id);
-      Object.values(balances).forEach(balance => {
-        if (balance < 0) {
-          totalOwed += Math.abs(balance);
-        } else {
-          totalOwedToUser += balance;
+      Object.entries(balances).forEach(([userId, balance]) => {
+        if (userId === user?.id) {
+          if (balance < 0) totalOwed += Math.abs(balance);
+          else totalOwedToUser += balance;
         }
       });
     });
-
     return { totalOwed, totalOwedToUser };
   };
 
@@ -216,79 +181,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const balances = getGroupBalances(groupId);
     const group = groups.find(g => g.id === groupId);
     const settlements: Settlement[] = [];
-
     if (!group) return settlements;
-
-    const debtors = Object.entries(balances)
-      .filter(([_, balance]) => balance < 0)
-      .map(([userId, balance]) => ({
-        userId,
-        amount: Math.abs(balance)
-      }));
-
-    const creditors = Object.entries(balances)
-      .filter(([_, balance]) => balance > 0)
-      .map(([userId, balance]) => ({
-        userId,
-        amount: balance
-      }));
-
+    const debtors = Object.entries(balances).filter(([_, balance]) => balance < 0).map(([userId, balance]) => ({ userId, amount: Math.abs(balance) }));
+    const creditors = Object.entries(balances).filter(([_, balance]) => balance > 0).map(([userId, balance]) => ({ userId, amount: balance }));
     while (debtors.length > 0 && creditors.length > 0) {
       const debtor = debtors[0];
       const creditor = creditors[0];
       const amount = Math.min(debtor.amount, creditor.amount);
-
       if (amount > 0) {
         const debtorUser = group.members.find(m => m.id === debtor.userId);
         const creditorUser = group.members.find(m => m.id === creditor.userId);
-
         if (debtorUser && creditorUser) {
-          settlements.push({
-            id: Math.random().toString(),
-            groupId,
-            fromUser: debtorUser,
-            toUser: creditorUser,
-            amount,
-            date: new Date(),
-            status: 'pending'
-          });
+          settlements.push({ id: Math.random().toString(), groupId, fromUser: debtorUser, toUser: creditorUser, amount, date: new Date(), status: 'pending' });
         }
-
         debtor.amount -= amount;
         creditor.amount -= amount;
       }
-
       if (debtor.amount <= 0) debtors.shift();
       if (creditor.amount <= 0) creditors.shift();
     }
-
     return settlements;
   };
 
   const settleExpense = async (expenseId: string): Promise<void> => {
     if (!user) throw new Error('User not authenticated');
-
     const expenseRef = doc(db, 'expenses', expenseId);
     await setDoc(expenseRef, { settled: true }, { merge: true });
   };
 
-  const getGroupInviteLink = (groupId: string): string => {
-    return `${window.location.origin}/join-group/${groupId}`;
-  };
+  const getGroupInviteLink = (groupId: string): string => `${window.location.origin}/join-group/${groupId}`;
 
   const joinGroupByInviteLink = async (inviteLink: string, user: User): Promise<void> => {
     const groupId = inviteLink.split('/join-group/')[1];
     const groupRef = doc(db, 'groups', groupId);
     const group = groups.find(g => g.id === groupId);
-
-    if (!group) {
-      throw new Error('Group not found');
-    }
-
-    if (group.members.some(member => member.id === user.id)) {
-      throw new Error('You are already a member of this group');
-    }
-
+    if (!group) throw new Error('Group not found');
+    if (group.members.some(member => member.id === user.id)) throw new Error('You are already a member of this group');
     await setDoc(groupRef, {
       members: [...group.members, user],
       memberIds: [...group.members.map(m => m.id), user.id],
@@ -309,7 +237,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getUserBalance,
         getSettlements,
         settleExpense,
-        getAllUsers: async () => [], // Implement this based on your needs
+        getAllUsers: async () => [],
         getGroupInviteLink,
         joinGroupByInviteLink,
       }}

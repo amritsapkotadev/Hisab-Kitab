@@ -2,8 +2,7 @@ import React from 'react';
 import { View, TextInput, Button, StyleSheet, Text, Alert } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { addDoc, collection } from 'firebase/firestore';
-import { db, auth } from './firebaseConfig';
-
+import { db, auth } from '../../firebaseConfig';
 type FormData = {
   title: string;
   amount: string;

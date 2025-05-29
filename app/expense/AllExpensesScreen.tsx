@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { onSnapshot, collection, query, orderBy } from 'firebase/firestore';
-import { db, auth } from './firebaseConfig';
+import { db, auth } from '../../firebaseConfig';
 import { useRouter } from 'expo-router';
 
 export default function AllExpensesScreen() {
