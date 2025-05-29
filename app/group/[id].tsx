@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, FAB, Appbar, Portal, Dialog, Button } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -11,18 +11,21 @@ import { SettlementCard } from '@/components/SettlementCard';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function GroupDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams();
   const router = useRouter();
   const { getGroup, getGroupExpenses, getGroupBalances, getSettlements, settleExpense } = useData();
   const { user } = useAuth();
   const { theme } = useTheme();
   
-  const [showSettlements, setShowSettlements] = React.useState(false);
+  const [showSettlements, setShowSettlements] = useState(false);
   
-  const group = getGroup(id);
-  const expenses = getGroupExpenses(id);
-  const balances = getGroupBalances(id);
-  const settlements = getSettlements(id);
+  // Ensure id is a string
+  const groupId = typeof id === 'string' ? id : Array.isArray(id) ? id[0] : '';
+  
+  const group = getGroup(groupId);
+  const expenses = getGroupExpenses(groupId);
+  const balances = getGroupBalances(groupId);
+  const settlements = getSettlements(groupId);
   
   // User's balance in this group
   const userBalance = user ? balances[user.id] || 0 : 0;
@@ -33,7 +36,7 @@ export default function GroupDetailScreen() {
   };
   
   const handleAddExpense = () => {
-    router.push(`/group/${id}/add-expense`);
+    router.push(`/group/${groupId}/add-expense`);
   };
   
   const handleSettleUp = () => {
