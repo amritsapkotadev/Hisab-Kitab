@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Controller, useForm } from 'react-hook-form';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import SignupScreen from './signup';
 interface LoginForm {
   email: string;
   password: string;
@@ -65,18 +65,7 @@ export default function LoginScreen() {
     router.push('/(auth)/signup');
   };
 
-  const applyDemoCredentials = () => {
-    control._formValues.email = 'john@example.com';
-    control._formValues.password = 'password';
-    control._updateFormState({
-      ...control._formState,
-      dirtyFields: {
-        ...control._formState.dirtyFields,
-        email: true,
-        password: true,
-      },
-    });
-  };
+  
 
   return (
     <ScrollView 
@@ -205,11 +194,7 @@ export default function LoginScreen() {
           Sign in with Google
         </Button>
         
-        <TouchableOpacity onPress={applyDemoCredentials} style={styles.demoContainer}>
-          <Text style={[styles.demoText, { color: theme.colors.placeholder }]}>
-            Use demo credentials
-          </Text>
-        </TouchableOpacity>
+        
       </View>
       
       <View style={styles.footer}>
