@@ -1,19 +1,27 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, Switch } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, ScrollView, Switch, Alert } from 'react-native';
 import { Text, Button, Divider, List } from 'react-native-paper';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Avatar } from '@/components/Avatar';
-import { Moon, Sun, CircleHelp as HelpCircle, Settings, LogOut } from 'lucide-react-native';
+import { Moon, Sun, CircleHelp as HelpCircle, Settings, LogOut, Mail } from 'lucide-react-native';
+import { sendVerificationEmail, checkEmailVerification } from '@/firebaseConfig';
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { theme, themeType, setThemeType, isDark } = useTheme();
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   
+  useEffect(() => {
+    const unsubscribe = checkEmailVerification((verified) => {
+      setIsEmailVerified(verified);
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleSignOut = async () => {
     try {
       await signOut();
-      // Navigation handled by AuthContext
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -21,6 +29,27 @@ export default function ProfileScreen() {
   
   const toggleTheme = () => {
     setThemeType(isDark ? 'light' : 'dark');
+  };
+
+  const handleVerifyEmail = async () => {
+    if (!user) return;
+    
+    try {
+      const sent = await sendVerificationEmail(user);
+      if (sent) {
+        Alert.alert(
+          'Verification Email Sent',
+          'Please check your email to verify your account.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'Failed to send verification email. Please try again later.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   return (
@@ -36,13 +65,24 @@ export default function ProfileScreen() {
             <View style={styles.profileInfo}>
               <Text style={styles.name}>{user?.name || 'User'}</Text>
               <Text style={styles.email}>{user?.email || ''}</Text>
+              {!isEmailVerified && (
+                <Button 
+                  mode="contained" 
+                  onPress={handleVerifyEmail}
+                  icon={({ size, color }) => (
+                    <Mail size={size} color={color} />
+                  )}
+                  style={styles.verifyButton}
+                >
+                  Verify Email
+                </Button>
+              )}
             </View>
           </View>
           
           <Button 
             mode="outlined" 
             style={styles.editButton}
-            // In a real app, this would navigate to an edit profile screen
             onPress={() => console.log('Edit profile')}
           >
             Edit Profile
@@ -123,8 +163,6 @@ const styles = StyleSheet.create({
     paddingTop: 40,
     backgroundColor: '#fff',
     paddingBottom: 16,
-    
-    
   },
   header: {
     padding: 16,
@@ -144,6 +182,7 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     marginLeft: 16,
+    flex: 1,
   },
   name: {
     fontSize: 20,
@@ -154,6 +193,10 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 14,
     opacity: 0.7,
+    marginBottom: 8,
+  },
+  verifyButton: {
+    marginTop: 8,
   },
   editButton: {
     marginTop: 8,
