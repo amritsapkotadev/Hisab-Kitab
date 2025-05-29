@@ -1,95 +1,8 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { v4 as uuidv4 } from 'uuid';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { collection, doc, setDoc, getDocs, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '@/config/firebase';
+import { useAuth } from './AuthContext';
 import { Group, Expense, User, ExpenseSplit, Settlement, SplitMethod } from '@/types';
-
-// Mock users for demo
-const MOCK_USERS: User[] = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg',
-  },
-  {
-    id: '2',
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg',
-  },
-  {
-    id: '3',
-    name: 'Bob Johnson',
-    email: 'bob@example.com',
-    avatar: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg',
-  },
-];
-
-// Mock groups
-const MOCK_GROUPS: Group[] = [
-  {
-    id: '1',
-    name: 'Weekend Trip',
-    members: MOCK_USERS.slice(0, 4),
-    createdAt: new Date('2024-01-15'),
-    description: 'Beach weekend getaway',
-    category: 'Travel'
-  },
-  {
-    id: '2',
-    name: 'Apartment 4B',
-    members: MOCK_USERS.slice(0, 3),
-    createdAt: new Date('2024-01-01'),
-    description: 'Monthly apartment expenses',
-    category: 'Home'
-  }
-];
-
-// Mock expenses
-const MOCK_EXPENSES: Expense[] = [
-  {
-    id: '1',
-    groupId: '1',
-    title: 'Hotel Booking',
-    amount: 800,
-    paidBy: [
-      { userId: '1', amount: 500 },
-      { userId: '2', amount: 300 }
-    ],
-    splitBetween: [
-      { userId: '1', amount: 200 },
-      { userId: '2', amount: 200 },
-      { userId: '3', amount: 200 },
-      { userId: '4', amount: 200 }
-    ],
-    splitMethod: SplitMethod.EQUAL,
-    date: new Date('2024-01-16'),
-    createdAt: new Date('2024-01-10'),
-    category: 'Accommodation',
-    notes: 'Oceanview rooms for 2 nights',
-    settled: false
-  },
-  {
-    id: '2',
-    groupId: '1',
-    title: 'Dinner',
-    amount: 240,
-    paidBy: [
-      { userId: '3', amount: 240 }
-    ],
-    splitBetween: [
-      { userId: '1', amount: 80 },
-      { userId: '2', amount: 80 },
-      { userId: '3', amount: 80 }
-    ],
-    splitMethod: SplitMethod.SHARES,
-    date: new Date('2024-01-17'),
-    createdAt: new Date('2024-01-17'),
-    category: 'Food',
-    notes: 'Seafood restaurant',
-    settled: false
-  }
-];
 
 interface DataContextType {
   groups: Group[];
@@ -113,95 +26,104 @@ interface DataContextType {
   getUserBalance: () => { totalOwed: number; totalOwedToUser: number };
   getSettlements: (groupId: string) => Settlement[];
   settleExpense: (expenseId: string) => Promise<void>;
-  getAllUsers: () => User[];
+  getAllUsers: () => Promise<User[]>;
+  getGroupInviteLink: (groupId: string) => string;
+  joinGroupByInviteLink: (inviteLink: string, user: User) => Promise<void>;
 }
 
-const DataContext = createContext<DataContextType>({
-  groups: [],
-  expenses: [],
-  createGroup: async () => ({ id: '', name: '', members: [], createdAt: new Date() }),
-  addExpense: async () => ({
-    id: '',
-    groupId: '',
-    title: '',
-    amount: 0,
-    paidBy: [],
-    splitBetween: [],
-    splitMethod: SplitMethod.EQUAL,
-    date: new Date(),
-    createdAt: new Date(),
-    settled: false
-  }),
-  getGroupExpenses: () => [],
-  getExpense: () => undefined,
-  getGroup: () => undefined,
-  getGroupBalances: () => ({}),
-  getUserBalance: () => ({ totalOwed: 0, totalOwedToUser: 0 }),
-  getSettlements: () => [],
-  settleExpense: async () => {},
-  getAllUsers: () => []
-});
+const DataContext = createContext<DataContextType>({} as DataContextType);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const { user } = useAuth();
 
-  // Load initial data only once using useCallback
-  const loadData = useCallback(async () => {
-    try {
-      const storedGroups = await AsyncStorage.getItem('groups');
-      const storedExpenses = await AsyncStorage.getItem('expenses');
+  // Subscribe to user's groups
+  useEffect(() => {
+    if (!user) return;
 
-      if (storedGroups) {
-        const parsedGroups = JSON.parse(storedGroups);
-        setGroups(parsedGroups.map((group: any) => ({
-          ...group,
-          createdAt: new Date(group.createdAt)
-        })));
-      } else {
-        setGroups(MOCK_GROUPS);
-        await AsyncStorage.setItem('groups', JSON.stringify(MOCK_GROUPS));
-      }
+    const q = query(
+      collection(db, 'groups'),
+      where('memberIds', 'array-contains', user.id)
+    );
 
-      if (storedExpenses) {
-        const parsedExpenses = JSON.parse(storedExpenses);
-        setExpenses(parsedExpenses.map((expense: any) => ({
-          ...expense,
-          date: new Date(expense.date),
-          createdAt: new Date(expense.createdAt)
-        })));
-      } else {
-        setExpenses(MOCK_EXPENSES);
-        await AsyncStorage.setItem('expenses', JSON.stringify(MOCK_EXPENSES));
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
-  }, []);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const groupsData: Group[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        groupsData.push({
+          id: doc.id,
+          name: data.name,
+          members: data.members,
+          createdAt: data.createdAt.toDate(),
+          description: data.description,
+          category: data.category,
+        });
+      });
+      setGroups(groupsData);
+    });
 
-  // Load data on mount
-  React.useEffect(() => {
-    loadData();
-  }, [loadData]);
+    return () => unsubscribe();
+  }, [user]);
+
+  // Subscribe to expenses
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, 'expenses'),
+      where('participantIds', 'array-contains', user.id)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const expensesData: Expense[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        expensesData.push({
+          id: doc.id,
+          groupId: data.groupId,
+          title: data.title,
+          amount: data.amount,
+          paidBy: data.paidBy,
+          splitBetween: data.splitBetween,
+          splitMethod: data.splitMethod,
+          date: data.date.toDate(),
+          createdAt: data.createdAt.toDate(),
+          category: data.category,
+          notes: data.notes,
+          settled: data.settled,
+        });
+      });
+      setExpenses(expensesData);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
 
   const createGroup = async (
     name: string,
     members: User[],
     description?: string,
     category?: string
-  ) => {
+  ): Promise<Group> => {
+    if (!user) throw new Error('User not authenticated');
+
+    const groupRef = doc(collection(db, 'groups'));
     const newGroup: Group = {
-      id: uuidv4(),
+      id: groupRef.id,
       name,
-      members,
+      members: [...members, user],
       createdAt: new Date(),
       description,
-      category
+      category,
     };
 
-    const updatedGroups = [...groups, newGroup];
-    setGroups(updatedGroups);
-    await AsyncStorage.setItem('groups', JSON.stringify(updatedGroups));
+    await setDoc(groupRef, {
+      ...newGroup,
+      memberIds: newGroup.members.map(m => m.id),
+      createdAt: new Date(),
+    });
+
     return newGroup;
   };
 
@@ -215,9 +137,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     date: Date,
     category?: string,
     notes?: string
-  ) => {
+  ): Promise<Expense> => {
+    if (!user) throw new Error('User not authenticated');
+
+    const expenseRef = doc(collection(db, 'expenses'));
     const newExpense: Expense = {
-      id: uuidv4(),
+      id: expenseRef.id,
       groupId,
       title,
       amount,
@@ -228,31 +153,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       createdAt: new Date(),
       category,
       notes,
-      settled: false
+      settled: false,
     };
 
-    const updatedExpenses = [...expenses, newExpense];
-    setExpenses(updatedExpenses);
-    await AsyncStorage.setItem('expenses', JSON.stringify(updatedExpenses));
+    await setDoc(expenseRef, {
+      ...newExpense,
+      participantIds: [...new Set([
+        ...paidBy.map(p => p.userId),
+        ...splitBetween.map(s => s.userId),
+      ])],
+      createdAt: new Date(),
+    });
+
     return newExpense;
   };
 
-  const getGroupExpenses = useCallback((groupId: string) => {
-    return expenses.filter(expense => expense.groupId === groupId);
-  }, [expenses]);
-
-  const getExpense = useCallback((expenseId: string) => {
-    return expenses.find(expense => expense.id === expenseId);
-  }, [expenses]);
-
-  const getGroup = useCallback((groupId: string) => {
-    return groups.find(group => group.id === groupId);
-  }, [groups]);
-
-  const getGroupBalances = useCallback((groupId: string) => {
+  const getGroupBalances = (groupId: string): Record<string, number> => {
     const balances: Record<string, number> = {};
-    const groupExpenses = getGroupExpenses(groupId);
-    const group = getGroup(groupId);
+    const groupExpenses = expenses.filter(expense => expense.groupId === groupId);
+    const group = groups.find(group => group.id === groupId);
 
     if (group) {
       group.members.forEach(member => {
@@ -273,9 +192,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return balances;
-  }, [getGroupExpenses, getGroup]);
+  };
 
-  const getUserBalance = useCallback(() => {
+  const getUserBalance = () => {
     let totalOwed = 0;
     let totalOwedToUser = 0;
 
@@ -291,11 +210,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     return { totalOwed, totalOwedToUser };
-  }, [groups, getGroupBalances]);
+  };
 
-  const getSettlements = useCallback((groupId: string) => {
+  const getSettlements = (groupId: string): Settlement[] => {
     const balances = getGroupBalances(groupId);
-    const group = getGroup(groupId);
+    const group = groups.find(g => g.id === groupId);
     const settlements: Settlement[] = [];
 
     if (!group) return settlements;
@@ -325,7 +244,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (debtorUser && creditorUser) {
           settlements.push({
-            id: uuidv4(),
+            id: Math.random().toString(),
             groupId,
             fromUser: debtorUser,
             toUser: creditorUser,
@@ -344,17 +263,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return settlements;
-  }, [getGroupBalances, getGroup]);
-
-  const settleExpense = async (expenseId: string) => {
-    const updatedExpenses = expenses.map(expense =>
-      expense.id === expenseId ? { ...expense, settled: true } : expense
-    );
-    setExpenses(updatedExpenses);
-    await AsyncStorage.setItem('expenses', JSON.stringify(updatedExpenses));
   };
 
-  const getAllUsers = useCallback(() => MOCK_USERS, []);
+  const settleExpense = async (expenseId: string): Promise<void> => {
+    if (!user) throw new Error('User not authenticated');
+
+    const expenseRef = doc(db, 'expenses', expenseId);
+    await setDoc(expenseRef, { settled: true }, { merge: true });
+  };
+
+  const getGroupInviteLink = (groupId: string): string => {
+    return `${window.location.origin}/join-group/${groupId}`;
+  };
+
+  const joinGroupByInviteLink = async (inviteLink: string, user: User): Promise<void> => {
+    const groupId = inviteLink.split('/join-group/')[1];
+    const groupRef = doc(db, 'groups', groupId);
+    const group = groups.find(g => g.id === groupId);
+
+    if (!group) {
+      throw new Error('Group not found');
+    }
+
+    if (group.members.some(member => member.id === user.id)) {
+      throw new Error('You are already a member of this group');
+    }
+
+    await setDoc(groupRef, {
+      members: [...group.members, user],
+      memberIds: [...group.members.map(m => m.id), user.id],
+    }, { merge: true });
+  };
 
   return (
     <DataContext.Provider
@@ -363,14 +302,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         expenses,
         createGroup,
         addExpense,
-        getGroupExpenses,
-        getExpense,
-        getGroup,
+        getGroupExpenses: (groupId) => expenses.filter(e => e.groupId === groupId),
+        getExpense: (expenseId) => expenses.find(e => e.id === expenseId),
+        getGroup: (groupId) => groups.find(g => g.id === groupId),
         getGroupBalances,
         getUserBalance,
         getSettlements,
         settleExpense,
-        getAllUsers
+        getAllUsers: async () => [], // Implement this based on your needs
+        getGroupInviteLink,
+        joinGroupByInviteLink,
       }}
     >
       {children}

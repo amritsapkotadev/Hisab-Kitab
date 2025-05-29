@@ -1,40 +1,34 @@
-import { 
-  
-  sendEmailVerification,
-  onAuthStateChanged,
-  User as FirebaseUser 
-} from 'firebase/auth';
-import { initializeApp } from "@firebase/app";
-import { getAuth } from "@firebase/auth";
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { initializeAuth, getAuth, getReactNativePersistence, GoogleAuthProvider } from 'firebase/auth';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
+// Firebase config from app.json
 const firebaseConfig = {
-  apiKey: "AIzaSyAVYuEswLiTZD_tpV_7vQgED9RnK3Cy-QE",
-  authDomain: "hisab-kitab-ad197.firebaseapp.com",
-  projectId: "hisab-kitab-ad197",
-  storageBucket: "hisab-kitab-ad197.firebasestorage.app",
-  messagingSenderId: "838491649019",
-  appId: "1:838491649019:web:16db04c04280fd5c2a915e",
+  apiKey: Constants.expoConfig?.extra?.FIREBASE_API_KEY,
+  authDomain: Constants.expoConfig?.extra?.FIREBASE_AUTH_DOMAIN,
+  projectId: Constants.expoConfig?.extra?.FIREBASE_PROJECT_ID,
+  storageBucket: Constants.expoConfig?.extra?.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: Constants.expoConfig?.extra?.FIREBASE_MESSAGING_SENDER_ID,
+  appId: Constants.expoConfig?.extra?.FIREBASE_APP_ID,
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+// ✅ Check before initializing
+const app = getApps().length === 0 
+  ? initializeApp(firebaseConfig) 
+  : getApps()[0];
 
-export const sendVerificationEmail = async (user) => {
-  try {
-    await sendEmailVerification(user);
-    return true;
-  } catch (error) {
-    console.error('Error sending verification email:', error);
-    return false;
-  }
-};
+// Auth (handle platform)
+const auth = Platform.OS === 'web'
+  ? getAuth(app)
+  : initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
 
-export const checkEmailVerification = (callback) => {
-  return onAuthStateChanged(auth, (user) => {
-    if (user) {
-      callback(user.emailVerified);
-    } else {
-      callback(false);
-    }
-  });
-};
+// Firestore and Google Provider
+const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+
+export { auth, db, googleProvider };
