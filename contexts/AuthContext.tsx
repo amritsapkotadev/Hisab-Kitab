@@ -4,6 +4,14 @@ import { useRouter, useSegments } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { User } from '@/types';
+import { auth } from '@/firebaseConfig';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -25,27 +33,15 @@ const AuthContext = createContext<AuthContextType>({
   signInWithGoogle: async () => {},
 });
 
-// Mock users for demo
-const MOCK_USERS: User[] = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg',
-  },
-  {
-    id: '2',
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg',
-  },
-  {
-    id: '3',
-    name: 'Bob Johnson',
-    email: 'bob@example.com',
-    avatar: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg',
-  },
-];
+const convertFirebaseUser = (firebaseUser: FirebaseUser): User => {
+  return {
+    id: firebaseUser.uid,
+    name: firebaseUser.displayName || 'User',
+    email: firebaseUser.email || '',
+    avatar: firebaseUser.photoURL || undefined,
+    emailVerified: firebaseUser.emailVerified,
+  };
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -59,42 +55,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     webClientId: "YOUR_WEB_CLIENT_ID",
   });
 
-  // Check for stored user session
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const storedUser = await AsyncStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch (error) {
-        console.error('Failed to load user:', error);
-      } finally {
-        setIsLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setIsLoading(true);
+      if (firebaseUser) {
+        const user = convertFirebaseUser(firebaseUser);
+        setUser(user);
+        AsyncStorage.setItem('user', JSON.stringify(user));
+      } else {
+        setUser(null);
+        AsyncStorage.removeItem('user');
       }
-    };
+      setIsLoading(false);
+    });
 
-    loadUser();
+    return () => unsubscribe();
   }, []);
 
-  // Handle Google Sign In response
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      // Here you would typically validate the token with your backend
-      // For demo, we'll create a mock user
-      const mockGoogleUser: User = {
-        id: Math.random().toString(36).substring(2, 11),
-        name: 'Google User',
-        email: 'google@example.com',
-        avatar: 'https://images.pexels.com/photos/771742/pexels-photo-771742.jpeg',
-      };
-      setUser(mockGoogleUser);
-      AsyncStorage.setItem('user', JSON.stringify(mockGoogleUser));
-    }
-  }, [response]);
-
-  // Handle routing based on auth state
   useEffect(() => {
     if (isLoading) return;
 
@@ -107,28 +84,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user, segments, isLoading, router]);
 
-  const signInWithGoogle = async () => {
-    try {
-      await promptAsync();
-    } catch (error) {
-      console.error('Google sign in failed:', error);
-      throw error;
-    }
-  };
-
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const foundUser = MOCK_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
-      
-      if (!foundUser) {
-        throw new Error('Invalid email or password');
-      }
-
-      await AsyncStorage.setItem('user', JSON.stringify(foundUser));
-      setUser(foundUser);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       console.error('Sign in failed:', error);
       throw error;
@@ -140,21 +99,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (name: string, email: string, password: string) => {
     try {
       setIsLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      if (MOCK_USERS.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-        throw new Error('Email already in use');
-      }
-
-      const newUser: User = {
-        id: Math.random().toString(36).substring(2, 11),
-        name,
-        email,
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
-      };
-
-      await AsyncStorage.setItem('user', JSON.stringify(newUser));
-      setUser(newUser);
+      const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password);
+      // Update profile with name
+      await firebaseUser.updateProfile({ displayName: name });
     } catch (error) {
       console.error('Sign up failed:', error);
       throw error;
@@ -163,12 +110,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = async () => {
+  const signOutUser = async () => {
     try {
-      await AsyncStorage.removeItem('user');
-      setUser(null);
+      await firebaseSignOut(auth);
     } catch (error) {
       console.error('Sign out failed:', error);
+      throw error;
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      await promptAsync();
+    } catch (error) {
+      console.error('Google sign in failed:', error);
       throw error;
     }
   };
@@ -179,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isLoading, 
       signIn, 
       signUp, 
-      signOut,
+      signOut: signOutUser,
       signInWithGoogle 
     }}>
       {children}
