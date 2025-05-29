@@ -1,5 +1,6 @@
 // User type
 export interface User {
+  firebaseUser(firebaseUser: any): unknown;
   id: string;
   name: string;
   email: string;

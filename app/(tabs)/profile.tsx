@@ -5,19 +5,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Avatar } from '@/components/Avatar';
 import { Moon, Sun, CircleHelp as HelpCircle, Settings, LogOut, Mail } from 'lucide-react-native';
-import { sendVerificationEmail, checkEmailVerification } from '@/firebaseConfig';
 
+import { sendEmailVerification } from 'firebase/auth';
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user, firebaseUser, signOut } = useAuth();
   const { theme, themeType, setThemeType, isDark } = useTheme();
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   
   useEffect(() => {
-    const unsubscribe = checkEmailVerification((verified) => {
-      setIsEmailVerified(verified);
-    });
-    return () => unsubscribe();
-  }, []);
+    if (firebaseUser) {
+      setIsEmailVerified(firebaseUser.emailVerified ?? false);
+    }
+  }, [firebaseUser]);
 
   const handleSignOut = async () => {
     try {
@@ -32,17 +31,15 @@ export default function ProfileScreen() {
   };
 
   const handleVerifyEmail = async () => {
-    if (!user) return;
+    if (!firebaseUser) return;
     
     try {
-      const sent = await sendVerificationEmail(user);
-      if (sent) {
-        Alert.alert(
-          'Verification Email Sent',
-          'Please check your email to verify your account.',
-          [{ text: 'OK' }]
-        );
-      }
+      await sendEmailVerification(firebaseUser);
+      Alert.alert(
+        'Verification Email Sent',
+        'Please check your email to verify your account.',
+        [{ text: 'OK' }]
+      );
     } catch (error) {
       Alert.alert(
         'Error',
@@ -61,7 +58,7 @@ export default function ProfileScreen() {
         
         <View style={styles.profileSection}>
           <View style={styles.profileHeader}>
-            <Avatar user={user} size={80} />
+            <Avatar user={user ?? undefined} size={80} />
             <View style={styles.profileInfo}>
               <Text style={styles.name}>{user?.name || 'User'}</Text>
               <Text style={styles.email}>{user?.email || ''}</Text>
@@ -109,7 +106,6 @@ export default function ProfileScreen() {
                 <Switch
                   value={isDark}
                   onValueChange={toggleTheme}
-                  color={theme.colors.primary}
                 />
               </View>
             )}

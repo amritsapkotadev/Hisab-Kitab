@@ -1,10 +1,11 @@
-import { initializeApp } from 'firebase/app';
 import { 
-  getAuth, 
+  
   sendEmailVerification,
   onAuthStateChanged,
   User as FirebaseUser 
 } from 'firebase/auth';
+import { initializeApp } from "@firebase/app";
+import { getAuth } from "@firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAVYuEswLiTZD_tpV_7vQgED9RnK3Cy-QE",
@@ -18,7 +19,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-export const sendVerificationEmail = async (user: FirebaseUser) => {
+export const sendVerificationEmail = async (user) => {
   try {
     await sendEmailVerification(user);
     return true;
@@ -28,7 +29,7 @@ export const sendVerificationEmail = async (user: FirebaseUser) => {
   }
 };
 
-export const checkEmailVerification = (callback: (verified: boolean) => void) => {
+export const checkEmailVerification = (callback) => {
   return onAuthStateChanged(auth, (user) => {
     if (user) {
       callback(user.emailVerified);
